@@ -1,7 +1,13 @@
 
 from tqdm import tqdm
 import torch
+import torch.nn as nn
 import copy
+
+def vae_loss(recon_x, x, mu, logvar):
+    MSE = torch.square(recon_x - x).mean()
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return MSE + KLD
 
 def train_model(
     model, criterion, optimizer, scheduler, 
@@ -30,7 +36,7 @@ def train_model(
 
                 # estimate and print summary stats
                 running_num += x.size(0)
-                running_loss += loss.item()
+                running_loss += loss.item() * x.size(0)
                 loss_history[phase].append((running_loss / running_num))
                 data_bar.set_description(
                     '{} epoch: [{}/{}] Loss: {:.4f}'

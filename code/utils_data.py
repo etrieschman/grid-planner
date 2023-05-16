@@ -17,9 +17,9 @@ PATH_RESULTS = PATH_HOME / 'results'
 
 def make_fake_data(N, T, n_nodes, n_series):
    # define initial datapoint
-    Sigma = np.random.normal(size=(n_nodes*n_series, n_nodes*n_series))*20
+    Sigma = np.random.normal(size=(n_nodes*n_series, n_nodes*n_series))
     Sigma = Sigma.T @ Sigma
-    mu = np.random.normal(size=n_nodes*n_series)*10
+    mu = np.random.normal(size=n_nodes*n_series)
     beta = np.random.randint(1,99,n_nodes*n_series)/100
 
     # assume moving average system
@@ -28,7 +28,7 @@ def make_fake_data(N, T, n_nodes, n_series):
     for t in tqdm(range(T-1)):
         X += [X[-1]*beta + np.random.normal(size=n_nodes*n_series)]
     X = np.array(X)
-    X = X.reshape(N, n_series, T, n_nodes)
+    X = X.reshape(N, n_nodes, T, n_series)
     print('Returning dataset with shape:\t', X.shape)
     return X
 
@@ -68,7 +68,7 @@ def make_dataloaders(
 
   # make dataloaders
   dataloaders = {
-    k:DataLoader(datasets[k], batch_size=batch_size, shuffle=True) 
+    k:DataLoader(datasets[k], batch_size=batch_size, shuffle=False) 
     for k in ['all', 'train','validate','test']
     }
 
