@@ -43,7 +43,7 @@
 \begin{document}
 
 %%%%%%%%% TITLE
-\title{Active learning strategies for trasmission planning}
+\title{Robust transmission cost modeling with active learning}
 
 \author{Erich Trieschman\\
 Stanford University, Department of Statistics\\
@@ -100,7 +100,7 @@ This approach assumes a linear relationship between forecasts and transmission c
 Under the cost model $y_i = x^Ta_i + \epsilon_i$, with $y_i \in \mathbb{R}$, $x, a_i \in \mathbb{R}^n$, and $\epsilon$ representing white noise, we can estimate $\hat{x}\in \mathbb{R}^n$ using maximum likelihood estimation. If we can optimally choose a fixed set of samples, we can minimize the uncertainty of our estimator $\hat{x}$ by solving:
 
 \begin{align*}
-\textrm{minimize} \quad & \left(\sum_{j=1}^pm_jv_jv_j^T\right)^{-1}\\
+\textrm{min.} \;(over S_+) \quad & \left(\sum_{j=1}^pm_jv_jv_j^T\right)^{-1}\\
 s.t. \quad & m \succeq 0, \quad m^T1 = M, \quad m \in \mathbb{Z}^n
 \end{align*}
 Here, $p$ is the number of distinct scenarios, $v_j$ is the $j$th distinct scenario, $m$ is the vector of the number of times each distinct scenario is used, and $M$ is the total number of scenarios to be selected.
@@ -116,7 +116,7 @@ We define the Gaussian Process surrogate model as
 \begin{align*}
     f(x) \sim \mathcal{GP}(m(x), k(x, x'))
 \end{align*}
-Where $x$ are the model inputs, and $k(x, x')$ is a pre-defined covariance function, often the squared exponential function, $k(x^{(i)}, x^{(j)}) = \exp\left(\frac{1}{2}\lVert x^{(i)} - x^{(j)}\rVert^2\right)$. 
+Where $x$ are the model inputs, and $k(x, x')$ is a pre-defined covariance function, often the squared exponential function, $k(x^{(i)}, x^{(j)}) = \exp\left(-\frac{1}{2}\lVert x^{(i)} - x^{(j)}\rVert^2\right)$. 
 
 A property of the Gaussian Process is that any finite collection of model outputs follows a multivariate Normal distribution. Namely
 \begin{align*}
@@ -144,29 +144,38 @@ We choose Maximum Entropy Search (MES) as our acquisition function, which aims t
     & \left[-\frac{1}{2}\log(2\pi v_x) - \frac{(f - \mu_x)^2}{2v_x}\right]df\\
     =& \frac{1}{2}\log(2\pi v_x) + \frac{1}{2}
 \end{align*}
-The point of maximum entropy in the surrogate model, $x^*$, is therefore
+Using kernel $k(x^{(i)}, x^{(j)}) = \exp\left(-\frac{1}{2}\lVert x^{(i)} - x^{(j)}\rVert^2_2\right)$, the point of maximum entropy in the surrogate model, $x^*$, is therefore
 \begin{align*}
-    argmax_x \quad & H(f \mid \textbf{x}^{(1:n)}, x) = \frac{1}{2}\log(2\pi v_x) + \frac{1}{2}
+    &\; \textrm{argmax}_x \;\; \frac{1}{2}\log(2\pi v_x) + \frac{1}{2} = \; \textrm{argmax}_x \;\; v_x \\
+    =&\; \textrm{argmax}_x \;\; k(x, x) - \textbf{k}(x)^T\textbf{K}^{-1}\textbf{k}(x)\\
+    =&\; \textrm{argmin}_x \;\; \sum_{i=1}^n\sum_{j=1}^n \textbf{K}^{-1}_{ij} \textbf{k}(x)_i \textbf{k}(x)_j\\
+    =&\; \textrm{argmin}_x \;\; \sum_{i=1}^n\sum_{j=1}^n C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert _2^2\right)\\
+    &\textrm{where } C_{ij} = \textbf{K}^{-1}_{ij}\exp(x_i^Tx_j)
 \end{align*}
-Using kernel $k(x^{(i)}, x^{(j)}) = \exp\left(\frac{1}{2}\lVert x^{(i)} - x^{(j)}\rVert^2_2\right)$, this problem can be formulated as a log-sum-exponential of positive quadratic functions of $x$, a convex function:
+This problem is clearly not convex, however, we employ several search strategies to approximate $x^*$. First we consider a brute force approach where we calculate entropy for a fixed set of sample points, $x \in \mathcal{D}$. $\hat{x}^*$ is simply the sample point yielding the maximal entropy. We also consider sequential convex programming (SCP) and particle methods, which are local methods that leverage convex optimization theory. 
+
+In SCP, we form a convex relaxation to the objective function, $f(x) =  \sum_{ij} C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert _2^2\right)$, at each step of the optimization, iterating until local convergence. The update step in this optimization routine becomes
 \begin{align*}
-    H(f \mid \textbf{x}^{(1:n)}, x) &= \frac{1}{2}\log(2\pi v_x) + \frac{1}{2}\\
-    &\propto \log(k(x, x) - \textbf{k}(x)^T\textbf{K}^{-1}\textbf{k}(x))\\
-    &\propto \log(k(x, x) - \sum_{i=1}^n\sum_{j=1}^n \textbf{K}_{ij} \textbf{k}(x)_i \textbf{k}(x)_j)
+    x^{(k+1)} &= \textrm{argmax}_x \hat{f}(x) \;\; \textrm{s.t} \;\; x \in \mathcal{T}^{(k)}
 \end{align*}
-With 
+Where $\hat{f}(x)$ is the convex part of the second order Taylor expansion of our objective function described above, evaluated at point $x^{(k)}$:
+\begin{small}
 \begin{align*}
-    \textbf{K}_{ij} \textbf{k}(x)_i \textbf{k}(x)_j &= \textbf{K}_{ij}k(x, x^{(i)})k(x, x^{(j)})\\
-    &= \textbf{K}_{ij}e^{\left[x^Tx - x^T\left(x^{(i)} + x^{(j)}\right) + \frac{1}{2}x^{(i)T}x^{(i)} + \frac{1}{2}x^{(j)T}x^{(j)} \right]}\\
-    &= e^{\left[x^Tx - x^Tm_{ij} + b_{ij}\right]} \textrm{, where}\\
-    b_{ij} &= \log(\textbf{K}_{ij}) + \frac{1}{2}x^{(i)T}x^{(i)} + \frac{1}{2}x^{(j)T}x^{(j)}\\
-    m_{ij} &= (x^{(i)} + x^{(j)})
-\end{align*}
-Hence
-\begin{align*}
-    H(f \mid \textbf{x}^{(1:n)}, x) \propto \log\left[ e^0 - \sum_{i=1}^n\sum_{j=1}^n e^{x^Tx - x^Tm_{ij} + b_{ij}} \right]\\
-    \propto \textrm{log-sum-exp}\left[0, \dots, x^Tx - x^Tm_{ij} + b_{ij}, \dots\right]
-\end{align*}
+    \hat{f}(x) &\approxeq f(x^{(k)}) + \nabla f(x^{(k)})^T(x - x^{(k)}) + (x - x^{(k)})^T P (x - x^{(k)})
+\end{align*}\end{small} 
+For
+\begin{small}\begin{align*}
+    \nabla f(x) =& \sum_{ij} C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right)\\
+    &\times \left(-2x + (x_i + x_j)\right)\\
+    P =& \left(\nabla^2 f(x^{(k)})\right)_+\\
+    \left[\nabla^2 f(x)\right]_{mn} =& \sum_{ij} C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right)\\
+    &\times (4 \left[x - \frac{1}{2}(x_i + x_j)\right]_m \left[x - \frac{1}{2}(x_i + x_j)\right]_n\\
+    &-2\mathbb{I}\{m = n\})
+\end{align*}\end{small}
+And $\mathcal{T}^{(k)}$ is a convex trust region for the problem. We consider $\mathcal{T}^{(k)} := \{x \mid \lvert x_i - x_i^{(k)}\rvert \leq \rho_i\}$.
+
+
+
 
 
 \subsection{Data encoding}

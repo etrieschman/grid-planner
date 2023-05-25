@@ -20,15 +20,16 @@ def make_fake_data(N, T, n_nodes, n_series):
     Sigma = np.random.normal(size=(n_nodes*n_series, n_nodes*n_series))
     Sigma = Sigma.T @ Sigma
     mu = np.random.normal(size=n_nodes*n_series)
-    beta = np.random.randint(1,99,n_nodes*n_series)/100
+    beta = np.random.randint(90, 99,n_nodes*n_series)/100
 
     # assume moving average system
     X0 = np.random.multivariate_normal(mean=mu, cov=Sigma, size=N)
     X = [X0]
     for t in tqdm(range(T-1)):
-        X += [X[-1]*beta + np.random.normal(size=n_nodes*n_series)]
+        X.append(X[-1]*beta + np.random.normal(loc=0, scale=0.1, size=n_nodes*n_series))
     X = np.array(X)
-    X = X.reshape(N, n_nodes, T, n_series)
+    X = X.reshape(T, N, n_nodes, n_series)
+    X = X.transpose(1, 2, 0, 3)
     print('Returning dataset with shape:\t', X.shape)
     return X
 
@@ -68,7 +69,7 @@ def make_dataloaders(
 
   # make dataloaders
   dataloaders = {
-    k:DataLoader(datasets[k], batch_size=batch_size, shuffle=False) 
+    k:DataLoader(datasets[k], batch_size=batch_size, shuffle=True) 
     for k in ['all', 'train','validate','test']
     }
 
