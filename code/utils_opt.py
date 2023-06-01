@@ -83,7 +83,7 @@ def doptimal(X:np.ndarray, m:int) -> Tuple:
     return V, l.value, stats
 
 
-def get_indices(X:np.ndarray, V:np.ndarray, l:np.ndarray, cutoff:float) -> np.array:
+def get_indices(X:np.ndarray, V:np.ndarray, l:np.ndarray, M:int) -> np.array:
     '''
     helper function to get indices from output of d-optimal experiment design
 
@@ -95,8 +95,8 @@ def get_indices(X:np.ndarray, V:np.ndarray, l:np.ndarray, cutoff:float) -> np.ar
             - experiemtns vector returned from D-optimal design
         l : np.ndarray
             - selector array returned from D-optimal design
-        cutoff : int
-            - heuristic cutoff value above which the values of l signify experiment selection
+        M : int
+            - number of desired samples
 
     returns
     ----------
@@ -104,6 +104,7 @@ def get_indices(X:np.ndarray, V:np.ndarray, l:np.ndarray, cutoff:float) -> np.ar
          - Indices of original X matrix to select
 
     '''
-    vsub = V[(l >= cutoff).flatten()]
-    __, idxs = np.where((X==vsub[:,None]).all(-1))
+    # vsub = V[(l >= cutoff).flatten()]
+    # __, idxs = np.where((X==vsub[:,None]).all(-1))
+    idxs = np.argsort(-l.flatten())[:M]
     return idxs

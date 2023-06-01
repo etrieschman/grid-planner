@@ -1,5 +1,10 @@
 \begin{thebibliography}{1}\itemsep=-1pt
 
+\bibitem{boyd}
+S.~Boyd and L.~Vandenberghe.
+\newblock {\em Convex optimization}.
+\newblock Cambridge university press, 2004.
+
 \bibitem{brochu2010tutorial}
 E.~Brochu, V.~M. Cora, and N.~de~Freitas.
 \newblock A tutorial on bayesian optimization of expensive cost functions, with

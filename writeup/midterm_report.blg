@@ -3,44 +3,44 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: midterm_report.aux
 The style file: ieee.bst
 Database file #1: egbib.bib
-You've used 5 entries,
+You've used 6 entries,
             2120 wiz_defined-function locations,
-            521 strings with 4377 characters,
-and the built_in function-call counts, 1169 in all, are:
-= -- 98
-> -- 58
+            526 strings with 4468 characters,
+and the built_in function-call counts, 1420 in all, are:
+= -- 120
+> -- 71
 < -- 0
-+ -- 25
-- -- 18
-* -- 54
-:= -- 199
-add.period$ -- 11
-call.type$ -- 5
-change.case$ -- 23
++ -- 30
+- -- 22
+* -- 66
+:= -- 243
+add.period$ -- 14
+call.type$ -- 6
+change.case$ -- 27
 chr.to.int$ -- 0
-cite$ -- 5
-duplicate$ -- 40
-empty$ -- 111
-format.name$ -- 18
-if$ -- 245
+cite$ -- 6
+duplicate$ -- 52
+empty$ -- 133
+format.name$ -- 22
+if$ -- 298
 int.to.chr$ -- 0
-int.to.str$ -- 5
-missing$ -- 2
-newline$ -- 24
-num.names$ -- 10
-pop$ -- 48
+int.to.str$ -- 6
+missing$ -- 4
+newline$ -- 29
+num.names$ -- 12
+pop$ -- 57
 preamble$ -- 1
-purify$ -- 19
+purify$ -- 23
 quote$ -- 0
-skip$ -- 40
+skip$ -- 47
 stack$ -- 0
-substring$ -- 27
-swap$ -- 5
+substring$ -- 32
+swap$ -- 6
 text.length$ -- 0
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 18
+type$ -- 20
 warning$ -- 0
-while$ -- 10
-width$ -- 6
-write$ -- 44
+while$ -- 12
+width$ -- 7
+write$ -- 54
