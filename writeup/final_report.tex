@@ -1,0 +1,257 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+%%%%%%%%% PAPER TYPE  - PLEASE UPDATE FOR FINAL VERSION
+% \usepackage[review]{cvpr}      % To produce the REVIEW version
+% \usepackage{cvpr}              % To produce the CAMERA-READY version
+\usepackage[pagenumbers]{cvpr} % To force page numbers, e.g. for an arXiv version
+
+% Include other packages here, before hyperref.
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{tablefootnote}
+\usepackage{booktabs}
+\graphicspath{{"../results/"}}
+
+% It is strongly recommended to use hyperref, especially for the review version.
+% hyperref with option pagebackref eases the reviewers' job.
+% Please disable hyperref *only* if you encounter grave issues, e.g. with the
+% file validation for the camera-ready version.
+%
+% If you comment hyperref and then uncomment it, you should delete
+% ReviewTempalte.aux before re-running LaTeX.
+% (Or just hit 'q' on the first LaTeX run, let it finish, and you
+%  should be clear).
+\usepackage[pagebackref,breaklinks,colorlinks]{hyperref}
+
+
+% Support for easy cross-referencing
+\usepackage[capitalize]{cleveref}
+\crefname{section}{Sec.}{Secs.}
+\Crefname{section}{Section}{Sections}
+\Crefname{table}{Table}{Tables}
+\crefname{table}{Tab.}{Tabs.}
+
+
+%%%%%%%%% PAPER ID 
+\def\cvprPaperID{*****} % *** Enter the CVPR Paper ID here
+\def\confName{CVPR}
+\def\confYear{2022}
+
+
+\begin{document}
+
+%%%%%%%%% TITLE
+\title{Robust transmission cost modeling with active learning}
+
+\author{Erich Trieschman\\
+Stanford University, Department of Statistics\\
+{\tt\small etriesch@stanford.edu}
+% \and
+% Second Author\\
+% Institution2\\
+% First line of institution2 address\\
+% {\tt\small secondauthor@i2.org}
+}
+\maketitle
+
+%%%%%%%%% ABSTRACT
+% \begin{abstract}
+% \end{abstract}
+  
+
+%------------------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+
+Electricity system transmission and generation expansion planning requires accurate forecasts of load, resource availability, and costs. However, current planning methods often rely on a single or few scenarios of load and resource availability forecasts. While deterministic models can be useful for communicating a simple system cost estimate, their results are highly sensitive to model inputs, namely these forecasts.
+
+To address this challenge, the Robust Decision Making (RDM) framework offers a solution to account for stochastic uncertainty. RDM focuses on robustness metrics by developing and stress-testing expansion plans across hundreds of thousands of potential future scenarios. The final output offers a distribution of system costs, which is more useful for describing input uncertainty. However, this approach is more computationally expensive.
+
+In this project, we focus methods to select optimal load, wind, and solar forecasts. Given a distribution of correlated load, wind, and solar scenarios, we use experiment design and active learning techniques to minimize the subset of forecasts required to characterize the distribution of system costs of an expansion decision.
+
+Our primary objective is to evaluate these methods under a single transmission expansion scenario, which we will optimize under the expected value of the forecasts. Time permitting, we would like to evaluate these methods in a general capacity expansion model to understand how expansion results change across nodes of a network from including increased interannual uncertainty.
+
+We intend to use a subset of transmission expansion options slated for Northern California Offshore Wind as a test case for these methods. These expansion options include HVDC Sub-sea cables as well as HVAC 500 kV overhead lines.
+
+%------------------------------------------------------------------------
+\section{Methods}
+\label{sec:methods}
+The goal of this work is to efficiently generate cost distributions for transmission expansion scenarios using a Security Constrained Unit Commitment and Economic Dispatch model (hereafter "cost model"). [INSERT: Describe PyPUSA, the transmission plannign model]. 
+
+To generate our cost distributions we use a sample of model inputs that are generated using a mean-reversion stochastic process method. This method uses a stochastic process based method to generate profiles that represent deviations from an expected base profile. We use the 2032 WECC ADS PCM as the "base" profile. This work is implemented outside the scope of this project.
+
+To generate our target cost distributions, we first determine the optimal transmission expansion under the expected value of the solar, wind, and load profiles. We then estimate costs under this optimal transmission expansion for each generated profile. We consider two baseline approaches and three optimal approaches to selecting these profiles, which are detailed in Table XX. Given the high-dimensional nature of our data, we also explore several encoding strategies to reduce the dimensionality of the forecasts. This step is necessary for our optimal approaches to selecting forecast profiles.
+
+
+\subsection{Scenario selection}
+[INSERT: Table summarizing approaches]
+
+To evaluate the performance of our scenario selection methods, we compare them against two baseline approaches. The first baseline approach (Full sample baseline) involves running the cost model under every set of stochastic profiles in our sample. Although this approach provides a gold-standard distribution, it is computationally expensive for many real-world applications.
+
+The second baseline approach (Random sample baseline) involves randomly selecting a subset of scenarios from our sample and running the cost model under those scenarios. We expect the cost distribution generated under this method to have a higher variance; this is the distribution we hope to improve upon with optimal sampling techniques.
+
+To overcome the computational burden of the Full sample baseline, we propose two optimal scenario selection methods.These methods are used to generate surrogate models, which approximate the computationally expensive cost model. Cost distributions can then be generated by the entire sample of forecasts through the inexpensive surrogate models. The first optimal scenario selection approach (One-shot selection) assumes a linear surrogate model and selects model inputs to minimize parameter standard errors. The second optimal scenario selection approach (Bayes optimization selection) is an active learning approach that sequentially selects optimal forecasts based on uncertainty in the surrogate model output. We describe both in more detail below. 
+
+\subsubsection{One-shot selection}
+This approach assumes a linear relationship between forecasts and transmission cost outputs. It aims to maximize the covariance matrix of the scenarios, which is an equivalent problem to minimizing the standard error of linear regression parameter estimates. 
+
+Under the surrogate cost model, $y_i = x_i^T\beta + \epsilon_i$, with $y_i \in \mathbb{R}$, $x_i, \beta \in \mathbb{R}^n$, and $\epsilon$ representing white noise, we can estimate $\hat{\beta}$ using maximum likelihood estimation. If we can optimally choose a fixed set of samples, we can minimize the uncertainty of our estimator $\hat{\beta}$ by solving:
+
+\begin{align*}
+\min_m. \;(\textrm{over } S_+) \quad & \left(\sum_{j=1}^pm_jv_jv_j^T\right)^{-1}\\
+s.t. \quad & m \succeq 0, \quad m^T1 = M, \quad m \in \{0, 1\}^n
+\end{align*}
+
+Here, $p$ is the number of distinct forecasts, $v_j$ is the $j$th distinct scenario, $m$ is the vector determining whether a distinct scenario is used, and $M$ is the total number of scenarios to be selected. This approach requires discretizing the dimensions of our input space into scenarios $v_j$. 
+
+We choose $m \in \{0, 1\}^n$ instead of the canonical formulation, $m \in \mathbb{Z}^n$, because our cost model is deterministic and we only need to concern ourselves with a single selection for each scenario.
+
+We relax the problem to a convex problem by using L1-norm heuristics and scalarize with the D-optimal design formulation as described in Boyd et. al. \cite{boyd}. Our final formulation becomes
+\begin{align*}
+    \min_\lambda. \quad & -\log\det \left(\sum_{j=1}^p\lambda_jv_jv_j^T\right)\\
+    s.t. \quad & 0 \preceq \lambda \preceq 1, \quad \lVert\lambda\rVert _1 \leq M
+\end{align*}
+
+Note this relaxed problem may yield a solution $\lambda_i \in (0, 1)$. We propose using heuristics like $\lambda_i > 0.75$ to determine whether a particular scenario is selected to run through the cost model.
+
+Time permitting, we will consider an optimal sample design for Quantile Regression parameters, as described in Wang et al. (2020) \cite{wang2020optimal}.
+
+\subsubsection{Bayes optimization selection}
+Active learning design is a sequential approach to selecting optimal scenarios for the cost model. In this approach, we iteratively select forecasts to run through the cost model based on the previous forecasts and the cost model outputs.
+
+One popular method for active learning design is Bayesian optimization, which we use here. This approach estimates a probability distribution over cost function outputs, conditional on all of the previous model outputs; it does so through a Gaussian Process (GP) model, which is updated after each evaluation of the function. The selection of the next forecast is determined by an "acquisition function", defined by the objective we seek to optimize \cite{brochu2010tutorial} \cite{wang2022intuitive}. 
+
+In our setting, we use Maximum Entropy Search as the acquisition function, which allows us to identify the forecast connected to the point of highest entropy in the surrogate cost model. Entropy is a measure of uncertainty about a given model input, so sequentially selecting maximal entropy points allows us to reduce overall uncertainty across our surrogate model.
+
+We define the Gaussian Process surrogate model as
+\begin{align*}
+    f(x) \sim \mathcal{GP}(m(x), k(x, x'))
+\end{align*}
+Where $x$ are the model inputs, and $k(x, x')$ is a pre-defined covariance function, often the squared exponential function, $k(x^{(i)}, x^{(j)}) = \exp\left(-\frac{1}{2}\lVert x^{(i)} - x^{(j)}\rVert^2_2\right)$. 
+
+A property of the Gaussian Process is that any finite collection of model outputs follows a multivariate Normal distribution. Namely
+\begin{align*}
+    \begin{bmatrix}
+        f(x^{(1)})\\\vdots\\f(x^{(n)})
+    \end{bmatrix} := \textbf{f}^{(1:n)} \sim N(0, \textbf{K})
+\end{align*}
+Where $\textbf{K}\in \mathbb{R}^{n\times n}$ is the covariance matrix of the model inputs with $\textbf{K}_{ij} = k(x^{(i)}, x^{(j)})$.
+
+With this formulation we may generate the predictive probability of our surrogate cost model, given a model input and the evidence
+\begin{align*}
+    f^{(n+1)} \mid \textbf{x}^{(1:n+1)} &\sim \mathcal{N}(\mu_{n+1}, v_{n+1}) \textrm{, where}\\
+    \mu_{n+1} &:= \textbf{k}(x^{(n+1)})^T\textbf{K}^{-1}\textbf{f}^{(1:n)}\\
+    v_{n+1} &:= k(x^{(n+1)}, x^{(n+1)}) - \textbf{k}(x^{(n+1)})^T\textbf{K}^{-1}\textbf{k}(x^{(n+1)})\\
+    \textbf{k}(x^{(n+1)}) &:= \left[k(x^{(n+1)}, x^{(1)}), \dots, k(x^{(n+1)}, x^{(n)})\right]
+\end{align*}
+
+This probability distribution is derived using the Sherman-Morrison-Woodbury formula and properties of conditional multivariate Normal distributions. 
+
+For Maximum Entropy Search (MES) as our acquisition function, we first derive an analytical form of the entropy equation, $H(f | \textbf{x}^{1:n}, x)$:
+\begin{align*}
+    H(f \mid \textbf{x}^{(1:n)}, x) :=& -\int N(f \mid \mu_x, v_x) \log\left[N(f \mid \mu_x, v_x)\right]df\\
+    =& -\int N(f \mid \mu_x, v_x) \times \\
+    & \left[-\frac{1}{2}\log(2\pi v_x) - \frac{(f - \mu_x)^2}{2v_x}\right]df\\
+    =& \frac{1}{2}\log(2\pi v_x) + \frac{1}{2}
+\end{align*}
+Using kernel $k(x^{(i)}, x^{(j)}) = \exp\left(-\frac{1}{2l^2}\lVert x^{(i)} - x^{(j)}\rVert^2_2\right)$, the point of maximum entropy in the surrogate model, $x^*$, is therefore
+\begin{align*}
+    &\; \textrm{argmax}_x \;\; \frac{1}{2}\log(2\pi v_x) + \frac{1}{2} = \; \textrm{argmax}_x \;\; v_x \\
+    =&\; \textrm{argmax}_x \;\; k(x, x) - \textbf{k}(x)^T\textbf{K}^{-1}\textbf{k}(x)\\
+    =&\; \textrm{argmin}_x \;\; \sum_{i=1}^n\sum_{j=1}^n \textbf{K}^{-1}_{ij} \textbf{k}(x)_i \textbf{k}(x)_j\\
+    =&\; \textrm{argmin}_x \;\; \sum_{i=1}^n\sum_{j=1}^n C_{ij} \exp\left(-\frac{1}{l^2}\lVert x - \frac{1}{2}(x_i + x_j)\rVert _2^2\right)\\
+    &\textrm{where } C_{ij} = \textbf{K}^{-1}_{ij}\exp(-\frac{1}{4l^2}\lVert x_i - x_j\rVert^2_2)
+\end{align*}
+
+We may tune hyperparameter $l$ as described in \cite{Rasmussen}.
+
+This problem is clearly not convex, however, we employ several search strategies to approximate $x^*$ with $\hat{x}^*$. First we consider a brute force approach where we calculate entropy for a fixed set of sample points, $x \in \mathcal{D}$. $\hat{x}^*$ is simply the sample point yielding the maximal entropy. We also consider sequential convex programming (SCP) techniques using second order approximations and particle methods; these local methods leverage convex optimization theory.
+
+In SCP we form a convex relaxation to the objective function, $f(x) =  \sum_{ij} C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert _2^2\right)$, at each step of the optimization, iterating until local convergence. The update step in this optimization routine becomes
+\begin{align*}
+    x^{(k+1)} &= \textrm{argmin}_x \hat{f}(x) \;\; \textrm{s.t} \;\; x \in \mathcal{T}^{(k)}
+\end{align*}
+Where $\mathcal{T}^{(k)}$ is a convex trust region for the problem. We consider $\mathcal{T}^{(k)} := \{x \mid \lvert x_i - x_i^{(k)}\rvert \leq \rho_i\}$. \textcolor{red}{\textbf{TODO:}} Need to understand how to define this trust region.
+
+Using second-order approximation methods, $\hat{f}(x)$ is defined as the convex part of the second order Taylor expansion of our objective function described above, evaluated at point $x^{(k)}$:
+\begin{small}
+\begin{align*}
+    \hat{f}(x) &\approxeq f(x^{(k)}) + \nabla f(x^{(k)})^T(x - x^{(k)}) + (x - x^{(k)})^T P (x - x^{(k)})
+\end{align*}\end{small} 
+For
+\begin{small}\begin{align*}
+    \nabla f(x) =& \sum_{ij} C_{ij} \exp\left(-\frac{1}{l^2}\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right)\\
+    &\times \frac{1}{l^2}\left(-2x + (x_i + x_j)\right)\\
+    P =& \left(\nabla^2 f(x^{(k)})\right)_+\\
+    \left[\nabla^2 f(x)\right]_{mn} =& \sum_{ij} C_{ij} \exp\left(-\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right)\\
+    &\times \frac{1}{l^2}(4 \left[x - \frac{1}{2}(x_i + x_j)\right]_m \left[x - \frac{1}{2}(x_i + x_j)\right]_n\\
+    &-2\mathbb{I}\{m = n\})
+\end{align*}\end{small}
+
+Using the particle method, $\hat{f}(x)$ is defined by a convex function fit to a random sample of data, $z_1, \dots, z_l \in \mathcal{T}^{(k)}$ evaluated with our non-convex objective function, $f(x)$. $\hat{f}(x)$ becomes the solution to
+\begin{small}\begin{align*}
+    \min_{P, q, r} \;\; & \sum_{i=1}^l \left((z_i - x^{(k)})^TP(x_i - x^{(k)}) + q^T(z_i - x^{(k)}) + r - f(z_i)\right)^2\\
+    \textrm{s.t.} \quad & P \succeq 0
+\end{align*}\end{small}
+
+We then minimize $\hat{f}(x)$ over all $x \in \mathcal{T}^{(k)}$ to find the next optimal sample point, $x^{(k+1)}$. The particle method approach simplifies computation and allows us to flexibly select where in the trust region, $\mathcal{T}^{(k)}$, to sample.
+
+
+
+
+
+
+
+\subsection{Data encoding}
+In this section, we address the challenge of high-dimensional input space and its impact on optimal scenario selection. Specifically, estimating system costs for just a small subset of nodes over a single year results in a massive number of model inputs (8760 hours in a year $\times$ 3 time series $\times$ 20 nodes $>$ 500,000 inputs). To overcome the curse of dimensionality, we explore several encoding strategies to drastically reduce the sample space. Our goal is to reduce the number of dimensions to a target of [INSERT: D], while retaining the important features of the original data. To achieve this, we consider three encoding methods: Principal Component Analysis (PCA), Wavelet Transforms, and (time-permitting) a Variational Autoencoder.
+
+\subsubsection{Encoding with principal components}
+PCA is a widely used data reduction technique that identifies linear combinations of input features that capture the most significant variation in the data. This method begins with an eigendecomposition of the covariance matrix of the dataset. The eigenvectors represent the directions along which the data varies the most, while the eigenvalues represent the amount of variation along each of these directions. The eigenvectors with the largest eigenvalues capture the most variation in the data, and are referred to as the principal components once they are normalized. Encoding with PCA involves projecting the original data onto a subset these principal components, which reduces the dimensionality of the dataset while preserving as much of the original variation as possible.
+
+Encoded data, $Y \in \mathbb{R}^{n\times D}$, can be formed as 
+\begin{align*}
+    X^TX &= Q\Lambda Q^{-1} \textrm{, the covariance eigendecomposition}\\
+    U &\in \mathbb{R}^{n\times n}, \textrm{ s.t. } u_i = \frac{q_i}{\lVert q_i \rVert} \textrm{ for } Q = [q_1, \dots, q_n]\\
+    Y &= XU_D \textrm{, for } U_D = [u_1, \dots, u_D]
+\end{align*}
+
+\textcolor{red}{\textbf{TODO:}} Reminder to de-mean each column before implementing
+
+\subsubsection{Encoding with a Variational Autoencoder}
+A Variational Autoencoder (VAE) is a type of neural network that can learn a compressed representation of high-dimensional data. The VAE is trained to encode the input data into a lower-dimensional latent space, while still preserving the important features of the original data. This technique allows us to reduce the dimensionality of the input data while capturing the most important information \cite{odaibo2019tutorial}
+
+
+%------------------------------------------------------------------------
+\section{Results and discussion}
+\label{sec:results}
+
+We are picturing the primary output of this project to be a comparison table like the one that follows:
+\begin{table}[!htbp]
+    \tiny
+    \begin{center}
+        \caption{\label{fig:summ} Estimated transmission expansion costs, by method}
+        \input{../results/t_summary.tex}
+    \end{center}
+\end{table}
+
+%------------------------------------------------------------------------
+\section{Conclusion and future work}
+\label{sec:conclusion}
+
+
+%------------------------------------------------------------------------
+\section{Contributions and acknowledgements}
+\label{sec:contrib}
+This work is conducted by Erich Trieschman as part of a larger project in collaboration with Kamran Tehranchi. Kamran is responsible for running the transmission planning model and for generating the stochastic profile data for our models. 
+
+All of my code, results, and the pretrained models are available in a project repo on my GitHub, available at \url{https://github.com/etrieschman/grid-planner}
+
+%%%%%%%%% REFERENCES
+{\small
+\bibliographystyle{ieee}
+\bibliography{egbib}
+}
+
+\end{document}

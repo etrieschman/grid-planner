@@ -1,0 +1,32 @@
+\begin{thebibliography}{1}\itemsep=-1pt
+
+\bibitem{boyd}
+S.~Boyd and L.~Vandenberghe.
+\newblock {\em Convex optimization}.
+\newblock Cambridge university press, 2004.
+
+\bibitem{brochu2010tutorial}
+E.~Brochu, V.~M. Cora, and N.~de~Freitas.
+\newblock A tutorial on bayesian optimization of expensive cost functions, with
+  application to active user modeling and hierarchical reinforcement learning,
+  2010.
+
+\bibitem{odaibo2019tutorial}
+S.~Odaibo.
+\newblock Tutorial: Deriving the standard variational autoencoder (vae) loss
+  function, 2019.
+
+\bibitem{Rasmussen}
+C.~E. Rasmussen and C.~K.~I. Williams.
+\newblock {\em {Gaussian Processes for Machine Learning}}.
+\newblock The MIT Press, 11 2005.
+
+\bibitem{wang2020optimal}
+H.~Wang and Y.~Ma.
+\newblock Optimal subsampling for quantile regression in big data, 2020.
+
+\bibitem{wang2022intuitive}
+J.~Wang.
+\newblock An intuitive tutorial to gaussian processes regression, 2022.
+
+\end{thebibliography}

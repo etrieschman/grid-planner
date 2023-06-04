@@ -1,7 +1,8 @@
 # virtual environment and checkpoints
 venv/
 .ipynb_checkpoints/
-*__pycache
+__pycache__/
+*.pyc
 
 # other
 data/*
