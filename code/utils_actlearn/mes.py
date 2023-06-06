@@ -1,4 +1,5 @@
 import numpy as np
+import timeit
 from tqdm import tqdm
 
 from utils_actlearn.gauss import *
@@ -53,7 +54,10 @@ def mes(scp_opt, X:np.ndarray, f:np.array, N:int, n0:int=2,
     Xk, Xleft = update_datasets(None, X, idx_init)
     fk, fleft = update_datasets(None, f.reshape(-1,1), idx_init)
     fk, fleft = fk.flatten(), fleft.flatten()
-    Kinv = np.linalg.inv(K(Xk, l))
+    try:
+        Kinv = np.linalg.inv(K(Xk, l))
+    except:
+        Kinv = np.linalg.pinv(K(Xk, l))
 
     # SCP parameters
     scp_params = {'rho0':0.01, 'alpha':0.1, 'beta':[1.1,0.5], 'num_iters':10}
@@ -63,13 +67,17 @@ def mes(scp_opt, X:np.ndarray, f:np.array, N:int, n0:int=2,
         for k, v in scp_param_override.items():
             scp_params[k] = v
 
-    for k in tqdm(range(n0, N)):
+    time_start = timeit.default_timer()
+    runtimes = []
+    for k in tqdm(range(n0, N), disable=True):
         # choose next sample
-        if scp_opt is not None:
-            xk, log = scp_opt(Xk, Kinv, l=l, **scp_params)
-            xk_idx = np.argmin(np.linalg.norm(Xleft - xk, ord=2, axis=1))
-        else:
+        if scp_opt == 'random':
+            xk_idx = np.random.randint(0, len(Xleft))
+        elif scp_opt == 'brute':
             xk_idx = np.argmin(np.array([f_obj(x, Xk, Kinv, l) for x in Xleft]))
+        else:
+            xk, log = scp_opt(Xk, Kinv, l=l, **scp_params)
+            xk_idx = np.argmin(np.linalg.norm(Xleft - xk, ord=2, axis=1))            
 
         # update sample datasets
         Xk, Xleft = update_datasets(Xk, Xleft, xk_idx)
@@ -77,10 +85,15 @@ def mes(scp_opt, X:np.ndarray, f:np.array, N:int, n0:int=2,
         fk, fleft = fk.flatten(), fleft.flatten()
 
         # fit model and run surrogate model for all samples
-        Kinv = np.linalg.inv(K(Xk, l))
+        # in case the matrix is singular, take the pseudo inverse
+        try:
+            Kinv = np.linalg.inv(K(Xk, l))
+        except:
+            Kinv = np.linalg.pinv(K(Xk, l))
         fpred = np.array([gp_mean(x, Xk, Kinv, fk, l) for x in X])
+        runtimes += [timeit.default_timer() - time_start]
         fpreds[k] = fpred
         
-    return fpreds
+    return fpreds, runtimes
 
 

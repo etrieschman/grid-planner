@@ -10,7 +10,7 @@ def gradf_obj(x, Xk, Kinv, l):
     gradf = np.zeros(d)
     for i in range(k):
         for j in range(k):
-            grad_ij = (-2/l**2)*(x - 0.5*(Xk[i] + Xk[j]))
+            grad_ij = (-2)*(x - 0.5*(Xk[i] + Xk[j]))
             grad_ij *= Kinv[i,j]*kernel(x, Xk[i], l)*kernel(x,Xk[j],l)
             gradf += grad_ij
     return gradf
@@ -22,7 +22,7 @@ def hessf_obj(x, Xk, Kinv, l):
     hessf = np.zeros((d,d))
     for i in range(k):
         for j in range(k):
-            hess_ij = (4/l**2)*np.outer((x - (1/2)*(Xk[i] + Xk[j])), x - (1/2)*(Xk[i] + Xk[j])) - 2*np.identity(d)
+            hess_ij = (4)*np.outer((x - (1/2)*(Xk[i] + Xk[j])), x - (1/2)*(Xk[i] + Xk[j])) - 2*np.identity(d)
             hess_ij *= Kinv[i,j]*kernel(x, Xk[i], l)*kernel(x,Xk[j], l)
             hessf +=  hess_ij
 

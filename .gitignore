@@ -14,3 +14,11 @@ data/*
 *.log
 *.out
 *.synctex.gz
+*.bbl
+*.brf
+*.blg
+*.bcf
+*.nav
+*.xml
+*.snm
+*.toc

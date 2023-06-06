@@ -72,7 +72,10 @@ def doptimal(X:np.ndarray, m:int) -> Tuple:
     constraints = [l >= 0, l <= 1]
     constraints += [cp.norm(l, 1) <= m]
     prob = cp.Problem(obj, constraints)
-    prob.solve(solver='SCS', verbose=False)
+    try:
+        prob.solve()
+    except:
+        prob.solve(solver='SCS')
     
     stats = {'status':prob.status, 
              'value':prob.value,
