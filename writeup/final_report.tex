@@ -59,6 +59,7 @@ Stanford University, Department of Statistics\\
 
 %%%%%%%%% ABSTRACT
 \begin{abstract}
+    Planning electricity transmission systems under uncertainty presents significant computational challenges given the high model resolution and large sample set necessary to estimate distributions of economic benefits. This work presents two scenario selection methods to minimize the subset of scenarios evaluated in a production cost simulation while preserving the moments of the full sample distribution. The first method uses a linear model to estimate the relationship between the scenario sub-set and economic benefits. The second method takes an active-learning approach using a Gaussian process model to improve the cost distribution estimate iteratively.  To demonstrate these methods, we use a 96-bus synthetic network of the Western Electricity Coordinating Council (WECC) to assess the economic benefits of developing a High Voltage Direct Current (HVDC) transmission line in California. Our active learning scenario selection methodology can approximate the cost-benefit distribution within 25-50 samples, a reduction from a 500-sample complete scenario set, representing 90-95\% computational savings. We also find that the optimal methods we explore approximate these cost-benefit distributions significantly better than baselines of randomly selected sample points. This work is parter of a larger collaboration with Kamran Tehranchi, outlined in Section \ref{sec:contrib}.
 \end{abstract}
   
 
@@ -93,22 +94,29 @@ To generate our estimated empirical distribution of benefits (hereafter "surroga
 
 \subsection{Production cost simulation and model inputs}
 
-The PCS is built on the pypsa-usa Breakthrough Energy synthetic Western Electricity Coordinating Council (WECC) network model\cite{xu_us_2020}. The PCS is an operational simulation of the electricity transmission system that provides information on the techno-economic performance of a power system, such as system operating costs, market prices, transmission congestion, and more. Figure \ref{fig:network} shows the network we model.
+The PCS is built on the pypsa-usa Breakthrough Energy synthetic Western Electricity Coordinating Council (WECC) network model\cite{xu_us_2020}. The PCS is an operational simulation of the electricity transmission system that provides information on the techno-economic performance of a power system, such as system operating costs, market prices, transmission congestion, and more. Figure \ref{fig:network} shows the network we model. Benefits are assessed in the network as the reduction in total market payments. The reduction in market payments is shown below, where $\lambda$ is the Locational Marginal Price for a given bus $n$ at hour $t$.
 
 \begin{align*}
-    \text{Benefits} &=  \tilde{\lambda}_{n,t} \cdot P_{\text{load}} - \lambda_{n,t} \cdot P_{\text{load}} \\
-    &\underbrace{\phantom{\text{Benefits}}}_{\text{HVDC Expansion}} \hspace{1em} \underbrace{\phantom{\text{Benefits}}}_{\text{Pre-expansion}}
- \end{align*}
+    \text{Benefits} &= \sum^N_n \sum^T_t [\tilde{\lambda}_{n,t} \cdot p_{\text{load},n,t} - \lambda_{n,t} \cdot p_{\text{load},n,t}] \\
+    &\hspace{3.5em}\underbrace{\phantom{\text{Benefits}}}_{\text{HVDC Expansion}} \hspace{2.5em} \underbrace{\phantom{\text{Benefits}}}_{\text{Pre-expansion}}
+\end{align*}
     
 
-\begin{figure}[h]
+\begin{figure}[!h]
     \centering
     \includegraphics[scale=0.25]{network.png}
     \caption{pypsa-usa 96-node WECC network}
     \label{fig:network}
 \end{figure}
 
-We generate stochastic load, wind, and solar profiles using the mean-reversion stochastic process method developed by the CAISO\cite{liu_order_nodate,liu_stochastic_2016}. This method uses a stochastic process-based method to generate profiles representing deviations from an expected base profile. We use the data embedded in the Breakthrough Energy network from 2016 as the "base" hourly load, wind, and solar profiles.
+We generate stochastic load, wind, and solar profiles using the mean-reversion stochastic process method developed by the CAISO\cite{liu_order_nodate,liu_stochastic_2016}. This method uses a stochastic process-based method to generate profiles representing deviations from an expected base profile. We use the data embedded in the Breakthrough Energy network from 2016 as the "base" hourly load, wind, and solar profiles. Figure 3 shows examples of these profiles for a 24-hour period at the CISO-PG\&E Bus.
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[scale=0.2]{ExampleCurves.png}
+    \caption{Stochastic Profiles for a CISO-PG\&E Bus in Network}
+    \label{fig:enter-label}
+\end{figure}
 
 Estimating system costs for just a small subset of nodes over a single year results in a massive number of model inputs (8760 hours in a year $\times$ 3 time series $\times$ 20 nodes $>$ 500,000 inputs). To overcome the curse of dimensionality, we use Principal Component Analysis (PCA) to encode the input data and drastically reduce the sample space. Our goal is to reduce the number of dimensions to a target of 10 dimensions, while retaining the important features of the original data. 
 
@@ -124,14 +132,14 @@ Encoded data, $Y \in \mathbb{R}^{n\times D}$, can be formed as
 Operation of the production cost simuation (hearafter "cost model") and generation of the encoded stochastic load, wind, and solar profiles (hereafter "model inputs") is conducted outside the scope of this project. 
 
 \subsection{Scenario selection}
-To evaluate the performance of our scenario selection methods, we compare their surrogate distributions to the true distribution. We also compare each to a baseline, which is trained with a random sample of model inputs; we expect the baseline surrogate distributions to differ more from the true distribution.
+To evaluate the performance of our scenario selection methods, we compare their surrogate distributions to the true distribution. We also compare each to a baseline trained with a random sample of model inputs; we expect the baseline surrogate distributions to differ more from the true distribution.
 
-We propose two optimal scenario selection methods. These methods are used to generate surrogate models, which approximate the computationally expensive cost model. Surrogate distributions can then be generated by the entire sample of forecasts through the inexpensive surrogate models. The first optimal scenario selection approach is taken from the literature of experiment design. We refer to this approach as "One-shot selection" as it selects all samples at the outset of the surrogate model training. The second optimal scenario selection approach is taken from the literature of active learning and we refer to it as such. Active learning selection sequentially selects optimal forecasts based on uncertainty in the surrogate model output being fit.
+We propose two optimal scenario selection methods. These methods are used to generate surrogate models, which approximate the computationally expensive cost model. Surrogate distributions can then be generated by the entire sample of forecasts, run through the inexpensive surrogate models. The first optimal scenario selection approach is taken from the literature of experiment design. We refer to this approach as "One-shot selection" as it selects all samples at the outset of the surrogate model training. The second optimal scenario selection approach is taken from the literature of active learning and we refer to it as such. Active learning selection sequentially selects optimal forecasts based on uncertainty in the surrogate model output being fit.
 
 \subsubsection{One-shot selection}
-In this approach we assume a linear relationship between forecasts and transmission cost outputs and use the surrogate cost model 
+In this approach, we assume a linear relationship between forecasts and transmission cost outputs and use the surrogate cost model 
 \begin{align*}
-    y_i = x_i^T\beta + \epsilon_i, \text{ with } y_i \in \mathbb{R}, \; x_i, \beta \in \mathbb{R}^n, \; \epsilon \text{ white noise }
+    y_i = x_i^T\beta + \epsilon_i, \text{ with } y_i \in \mathbb{R}, \; x_i, \beta \in \mathbb{R}^d, \; \epsilon \text{ white noise }
 \end{align*} 
 
 We estimate $\hat{\beta}$ using maximum likelihood estimation and minimize the uncertainty of our estimator $\hat{\beta}$ by minimizing the inverse covariance of our input data. Assuming a fixed set of $p$ input data combinations, $v_j$, and $M$ desired scenarios to be selected, we may select target input data to minimize the inverse covariance by optimizing the following problem:
@@ -140,7 +148,7 @@ We estimate $\hat{\beta}$ using maximum likelihood estimation and minimize the u
 s.t. \quad & m \succeq 0, \; m^T1 = M, \; m \in \{0, 1\}^n
 \end{align*}
 
-Here, $m\in \mathbb{R}^p$ is an indicator variable whos $j^{th}$ entry determines whether scenarios $v_j$ is selected. We choose $m \in \{0, 1\}^n$ instead of the canonical formulation, $m \in \mathbb{Z}^n$, because our cost model is deterministic and we only need to concern ourselves with a single selection for each scenario.
+Here, $m\in \mathbb{R}^p$ is an indicator variable whose $j^{th}$ entry determines whether scenarios $v_j$ is selected. We choose $m \in \{0, 1\}^n$ instead of the canonical formulation, $m \in \mathbb{Z}^n$, because our cost model is deterministic and we only need to concern ourselves with up to one selection for each scenario.
 
 We scalarize the problem with the D-optimal design formulation as described in Boyd et. al. \cite{boyd}. We also relax the binary constraint using the L1-norm heuristic, replacing $m$ with $\lambda$ in our formulation to represent this. We choose the L1-norm constraint instead of the cannonical constraint $\lambda^T1 = \alpha M$ to maximize sparsity in the resulting solution, since we seek a solution with up to one choice per input scenario. 
 \begin{align*}
@@ -152,7 +160,7 @@ This relaxed problem may yield a solution $\lambda_i \in [0, 1]$. We choose the 
 
 There are two design choices for this problem, which we care to explore in future work. First, we must choose how to discretize continuous input data, $x_i$, into finite input data scenarios, $v_j$. We choose 10 data bins for each dimension and a uniform split across bins. Second, we must choose hyperparameter $\alpha$ to control the impact of the L1-heuristic constraint; we use $\alpha=2$. 
 
-\subsubsection{Active learning selection}
+\subsubsection{Active learning}
 Active learning design is a sequential approach to selecting optimal scenarios for the cost model. In this approach, we iteratively select forecasts to run through the cost model based on the previous forecasts and the cost model outputs.
 
 One popular method for active learning selection is Bayesian optimization, which we use here. This approach estimates a probability distribution over cost function outputs, conditional on all of the previous model outputs; it does so through a Gaussian Process (GP) model, which is updated after each evaluation of the function. The selection of the next forecast is determined by an "acquisition function", defined by the objective we seek to optimize \cite{brochu2010tutorial} \cite{wang2022intuitive}. 
@@ -180,10 +188,11 @@ Using the Sherman-Morrison-Woodbury formula and properties of conditional multiv
     \textbf{k}(x^{(n+1)}) &:= \left[k(x^{(n+1)}, x^{(1)}), \dots, k(x^{(n+1)}, x^{(n)})\right]
 \end{align*}
 
-In our setting, we use Maximum Entropy Search (MES) as the acquisition function, which allows us to identify the forecast connected to the point of highest entropy in the surrogate cost model. Entropy is a measure of uncertainty about a given model input, so sequentially selecting maximal entropy points allows us to reduce overall uncertainty across our surrogate model \cite{sebastiani_mes}\cite{mussmann2018relationship}. We first derive an analytical form of the entropy equation, $H(f | \textbf{x}^{1:n}, x)$:
+In our setting, we use Maximum Entropy Search (MES) as the acquisition function, which allows us to identify the forecast connected to the point of highest entropy in the surrogate cost model. Entropy is a measure of uncertainty about a given model input, so sequentially selecting maximal entropy points allows us to reduce overall uncertainty across our surrogate model. We first derive an analytical form of the entropy equation, $H(f | \textbf{x}^{1:n}, x)$:
 \begin{align*}
     H(f \mid \textbf{x}^{(1:n)}, x) :=& -\int N(f \mid \mu_x, v_x) \log\left[N(f \mid \mu_x, v_x)\right]df\\
-    =& -\int N(f \mid \mu_x, v_x) \left[-\frac{1}{2}\log(2\pi v_x) - \frac{(f - \mu_x)^2}{2v_x}\right]df\\
+    =& -\int N(f \mid \mu_x, v_x)\\
+    &\times \left[-\frac{1}{2}\log(2\pi v_x) - \frac{(f - \mu_x)^2}{2v_x}\right]df\\
     =& \frac{1}{2}\log(2\pi v_x) + \frac{1}{2}
 \end{align*}
 
@@ -222,19 +231,21 @@ Using second-order approximation methods, $\hat{f}^{(k)}(x)$ is defined as the c
 \end{align*}
 For
 \begin{align*}
-    \nabla f(x) =& \sum_{ij} C_{ij} \exp\left(-\frac{1}{l^2}\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right) \frac{1}{l^2}\left(-2x + (x_i + x_j)\right)\\
+    \nabla f(x) =& \sum_{ij} C_{ij} \exp\left(-\frac{1}{l^2}\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right) \\
+    &\times \frac{1}{l^2}\left(-2x + (x_i + x_j)\right)\\
     P =& \left(\nabla^2 f\left(x^{(n+1)^{(k)}}\right)\right)_+\\
     \nabla^2 f(x) =& \sum_{ij} C_{ij} \exp\left(-\frac{1}{l^2}\lVert x - \frac{1}{2}(x_i + x_j)\rVert ^2_2 \right)\\
     &\times \frac{1}{l^2}\left(4 \left[x - \frac{1}{2}(x_i + x_j)\right] \left[x - \frac{1}{2}(x_i + x_j)\right]^T -2I\right)
 \end{align*}
 
-Using the particle method, $\hat{f}^{(k)}(x)$ is defined by a quadratic function fit to a random sample of data, $z_1, \dots, z_L \in \mathcal{T}^{(k)}$ evaluated with our non-convex objective function, $f(x)$
+Using the particle method, $\hat{f}^{(k)}(x)$ is defined by a quadratic function fit to a random sample of data, $z_1, \dots, z_L \in \mathcal{T}^{(k)}$ evaluated with our non-convex objective function, $f(x)$.
 \begin{align*}
-    \hat{f}^{(k)}(x) = \left(x - x^{(n+1)^{(k)}}\right)^T P \left(x - x^{(n+1)^{(k)}}\right) + q^T\left(x - x^{(n+1)^{(k)}}\right) + r
+    \hat{f}^{(k)}(x) =& \left(x - x^{(n+1)^{(k)}}\right)^T P \left(x - x^{(n+1)^{(k)}}\right)\\
+    & + q^T\left(x - x^{(n+1)^{(k)}}\right) + r
 \end{align*}
-Where
+Where $(P, q, r)$ is defined as
 \begin{align*}
-    (P, q, r) = \text{argmin}_{P\succeq 0, q, r} \;\;  \sum_{i=1}^L \left(
+    \text{argmin}_{P\succeq 0, q, r} \;\;  \sum_{i=1}^L \left(
         \begin{matrix}
             \left(z_i - x^{(n+1)^{(k)}}\right)^TP\left(z_i - x^{(n+1)^{(k)}}\right)\\\\
             +\; q^T\left(z_i - x^{(n+1)^{(k)}}\right) + r - f(z_i)
@@ -248,15 +259,14 @@ There are several design choices for our active learning approach, which we care
 Second, we choose an acquisition function for selecting each subsequent sample point. We use MES, but other approaches that balance exploration and exploitation could also be considered. 
 
 Third, within our SCP approach we choose which function approximation to use; we explore both Taylor and particle method approximations. We also choose trust region and trust region update hyperparameters. For each subsequent sample, we initialize $\rho^{(0)}_i = \gamma \min X_i^T$ with $\gamma=0.01$ and we define $(\beta^{succ}, \beta^{fail}) = (1.1, 0.5)$ and $\alpha=0.1$.
-
 %------------------------------------------------------------------------
 \section{Results}
 \label{sec:results}
-We have two major takeaways from this work. First, we find that both of the surrogate models are able to approximate the cost model after only 25-50 samples. Assuming that an adequate true distribution can be generated with 500 samples, this represents computational savings of 90-95\%. While the linear model is not able to simulate the tails of the true distribution well, the Gaussian process model successfully approximates the outer percentiles (5th and 95th).
+We have two major takeaways from this work. First, we find that both of the surrogate models are able to approximate the cost model after only 25-50 samples. Assuming that an adequate true distribution can be generated with 500 samples, this represents computational savings of $90-95\%$. While the linear model is not able to simulate the tails of the true distribution well, the Gaussian process model successfully approximates the outer percentiles (5th and 95th).
 
 Second, we find that optimal sample selection methods for fitting both surrogate models can generate surrogate distributions significantly closer to the true distribution than random sampling for fitting surrogate models.
 
-Table \ref{tab:summ} summarizes the results for all of our trials. Empirical distributions are generated with 500 input data samples. Surrogate models are fit with 50 samples (either optimally or randomly selected). The numbers in the table represent the absolute difference between the statistic calculated for the true distribution and the statistic calculated for the surrogate distribution; we want these numbers to be close to zero. We use bootstrapping to generate a confidence interval around these differences\footnote{Active learning requires initialization with a few sample points. We choose these randomly in each iteration, hence the distribtuions we observe reveal the impact of initial conditions on the approach. D-optimal design is deterministic, so we do not generate a confidence interval for that method}.
+Table \ref{tab:summ} summarizes the results for all of our trials. Empirical distributions are generated with 500 input data samples. Surrogate models are fit with 50 samples (either optimally or randomly selected). The numbers in the table represent the absolute difference between the statistic calculated for the true distribution and the statistic calculated for the surrogate distribution; we want these numbers to be close to zero. We use bootstrapping to generate a confidence interval around these differences.\footnote{Active learning requires initialization with a few sample points. We choose these randomly in each iteration, hence the distribtuions we observe reveal the impact of initial conditions on the approach. D-optimal design is deterministic, so we do not generate a confidence interval for that method}.
 
 \begin{table}[!htbp]
     \scriptsize
@@ -330,21 +340,21 @@ We present our results in figures below. Figures \ref{fig:dist_oneshot} and \ref
 \section{Discussion and future work}
 \label{sec:conclusion}
 
-Our results demonstrate that complex production cost simulation models can be approximated with simple linear or gaussian process models as a function of encoded stochastic weather and load inputs. It remains to be investigated whether cost model outputs can also be modeled as a function of other PCS inputs like fuel costs.
+Our results demonstrate that complex production cost simulation models can be approximated with simple linear or gaussian process models as a function of encoded stochastic load, wind, and solar inputs. It remains to be investigated whether these findings will generalize to assessing the economic benefits of transmission expansions in different systems sizes, under different technology investments, and a wider range of  stochastic parameter inputs like fuel costs.
 
 We suspect that the performance we observe is the result of underlying data and model structures. First, the production cost simulation uses a DC Power Flow model, which requires a linear objective and also linearizes the AC power flow constraints. Hence, it is reasonable to expect that some linear regression model may adequately capture the model behavior. Second, the stochastic profile method models a random walk with a mean reverting term. The process generates each forward step by taking the sum of the previous step, a mean-reverting term, and a random error. It is reasonable to expect that such a structure could be exploited by Gaussian process surrogate models. We propose studying the underlying mechanics leading to our project's outcome in future work.
 
-Another curiosity for future work is to explore the characteristics of these optimal input data samples. We would like to explore the nature of these samples and what they reveal about the core drivers of costs in the cost model. This line of research may reveal key nodes in the network or types of weather patterns that the cost model is particularly sensitive to.
+Another curiosity for future work is to explore the characteristics of these optimal input data samples. We would like to explore the nature of these samples and what they reveal about the core drivers of transmission benefits in the cost model. Furthermore we would like to assess which system conditions drive benefits under different technology investments. For instance, an interesting question would be to assess under which climate scenarios and regions would certain investments perform more favorably in mitigating downside economic risk. This line of research may reveal key nodes in the network or types of weather patterns that the cost model is particularly sensitive to.
 
-\textcolor{red}{PLACEHOLDER:} Discuss how these methods might be used in a setting where we consider a broader set of expansion scenarios (beyond a single line).
+The methods developed in this paper would also be useful to apply more broadly to generation and transmission expansion planning. In traditional generation and transmission expansion planning problem, the problem is formulated as a minimization over the sum of capital costs under a particular set of expansion investment $f(\zeta)$  and the operational costs $g(\zeta,x)$ given investments $\zeta$  and operation decisions x. Under uncertainty, a typical formulation is extended to to $f(\zeta) + \mathop{{}\mathbb{E}[g(\zeta,x,\phi)]}$, where $\phi$ represents uncertain parameters. In this paper, we have presented a method for easing the computation of the second stage operating costs in a two-stage stochastic program. The curse of dimensionality still holds under scenarios with large number of infrastructure alternatives, but this method can be used to expand the number of infrastructure alternatives and uncertain parameters evaluated in a capacity expansion model.
 
 Our PCA encoding strategy captures approximately 2.5\% of the total input data variance. We would like to explore how our results change when we are able to capture a higher share of total variance through an encoding. Such encoding strategies could include wavelet transforms and variational autoencoders for time series data as presented in Desai et. al \cite{desai2021timevae}.
 
-There are several ways we could test the robustness of our results. First, we propose examining our methods under purely random input data, instead of with well-behaved stochastic mean-reversion profiles. \textcolor{red}{TODO:} why would this be helpful? Second, we propose testing these methods under the cannonical two-bus, three-bus, and Tripoli \textcolor{red}{spelling?} networks. Examining our results under these simplified networks will allow us to study the ways in which Gaussian Processes may simulate production cost models. 
+There are several ways we could test the robustness of our results. First, we propose examining our methods under purely random input data, instead of with well-behaved stochastic mean-reversion profiles. Testing under purely random input data would enable us to validate the method's robustness outside standard operating conditions where Gaussian cost distributions are expected. Second, we propose testing these methods under the cannonical two-bus, three-bus, IEEE test networks, and RTS-GMLC networks. Examining our results under these well studied networks will allow us to study the generalization of our method under a variety of systems. 
 
 Lastly, we propose several extensions to improve and fine tune our sample selection procedures:
 \begin{enumerate}
-        \item One-shot selection to optimize for quantile regression parameters instead of linear regression parameters as described in Wang et al. (2020) \cite{wang2020optimal}. This strategy could offer a sampling technique to target specific quantiles of the distribution.
+        \item One-shot selection to optimize for quantile regression parameters instead of linear regression parameters as described in Wang et al. \cite{wang2020optimal}. This strategy could offer a sampling technique to target specific quantiles of the distribution.
         \item Strategies for robust hyperparameter tuning within our Gaussian process kernel as described in Rasmussen et al \cite{Rasmussen}.
         \item Modeling a mixture of Gaussian processes instead of a single Gaussian process as outlined in Blei et al \cite{Blei_2017}.
 \end{enumerate}
