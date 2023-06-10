@@ -3,7 +3,7 @@ import timeit
 from tqdm import tqdm
 
 from utils_actlearn.gauss import *
-from utils import dict_list
+from utils import dict_list, get_stats
 
 
 def f_obj(x, Xk, Kinv, l):
@@ -97,3 +97,20 @@ def mes(scp_opt, X:np.ndarray, f:np.array, N:int, n0:int=2,
     return fpreds, runtimes
 
 
+
+def bootstrap_mes_stats(scp_opt, X, f, N, n0, l, n_bootstrap, stats):
+    bootstrap_results = dict_list()
+
+    for i in tqdm(range(n_bootstrap)):
+        fpreds, runtimes = mes(scp_opt, X, f, N, n0, l)
+        results = get_stats(f, fpreds)
+        results['runtime'] = runtimes
+        
+        for stat in stats:
+            bootstrap_results.add(stat, results[stat])
+
+    
+    for stat in stats:
+        bootstrap_results[stat] = np.array(bootstrap_results[stat])
+    
+    return bootstrap_results, results, fpreds

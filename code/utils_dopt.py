@@ -1,7 +1,13 @@
 import numpy as np
 import cvxpy as cp
 from typing import Tuple
+from tqdm import tqdm
+import statsmodels as sm
+import timeit
 from sklearn.preprocessing import KBinsDiscretizer, StandardScaler
+
+
+from utils import dict_list, get_stats
 
 def scale_and_discretize(X:np.ndarray, disc_strategy:str, disc_bins:int) -> Tuple:
     '''
@@ -111,3 +117,43 @@ def get_indices(X:np.ndarray, V:np.ndarray, l:np.ndarray, m:int) -> np.array:
     # __, idxs = np.where((X==vsub[:,None]).all(-1))
     idxs = np.argsort(-l.flatten())[:m]
     return idxs
+
+
+def lin_opt(X, Xt, f, N, n0, disable=True):
+    fpreds = {}
+    runtimes = []
+
+    for k in tqdm(range(n0, N), disable=disable):
+        time_start = timeit.default_timer()
+        if Xt is None:
+            xk_idxs = np.random.randint(0, len(X), k)
+        else:
+            V, l, stats = doptimal(Xt, int(k*2))
+            xk_idxs = get_indices(Xt, V, l, k)
+
+        Xk = X[xk_idxs]
+        fk = f[xk_idxs]
+        fpred = sm.OLS(fk, sm.add_constant(Xk), hasconst=True).fit().predict(sm.add_constant(X))
+        runtimes += [timeit.default_timer() - time_start]
+        fpreds[k] = fpred
+        
+    return fpreds, runtimes
+
+
+def bootstrap_lin_stats(X, Xt, f, N, n0, n_bootstrap, stats):
+    
+    bootstrap_results = dict_list()
+
+    for i in tqdm(range(n_bootstrap)):
+        fpreds, runtimes = lin_opt(X, Xt, f, N, n0)
+        results = get_stats(f, fpreds)
+        results['runtime'] = runtimes
+        
+        for stat in stats:
+            bootstrap_results.add(stat, results[stat])
+
+    
+    for stat in stats:
+        bootstrap_results[stat] = np.array(bootstrap_results[stat])
+    
+    return bootstrap_results, results, fpreds

@@ -58,8 +58,8 @@ def plot_boxplots(f, fpreds, xlim=None, save_file=None):
                 flierprops=flier_dict, boxprops=box_dict, whiskerprops=whisker_dict)
     ax[0].set_ylabel('N samples to fit Surrogate model')
     ax[1].set_xlabel('Normalized cost')
-    # ax[0].set_yticks(range(0, N-n0+5, 5))
-    # ax[0].set_yticklabels(reversed(range(n0, N+5, 5)))
+    ax[0].set_yticks(range(0, N-n0, 5))
+    ax[0].set_yticklabels(reversed(range(n0, N, 5)))
     if xlim is not None:
         ax[0].set_xlim(xlim)
 
@@ -93,7 +93,7 @@ def plot_stats(results, results_pred, save_file=None):
         plt.savefig(PATH_HOME + '/results/' + save_file + '.png', bbox_inches='tight')
     plt.show()
 
-def plot_stats_boot(bootstrap, n0, N, step=1, save_file=None):
+def plot_stats_boot(bootstrap, n0, N, save_file=None):
     fig, ax = plt.subplots(ncols=3, sharey=True, figsize=(6,3))
 
     panels = [['mean', 'pctl_50'], ['std'], ['pctl_10', 'pctl_90']]
@@ -101,10 +101,10 @@ def plot_stats_boot(bootstrap, n0, N, step=1, save_file=None):
 
     for i, panel in enumerate(panels):
         for j, stat in enumerate(panel):
-            stat_mean = bootstrap[stat].mean(0)
-            stat_error = bootstrap[stat].std(0)*1.96
-            ax[i].plot(np.arange(n0, N+step, step), stat_mean, alpha=0.5, color=colors[j], label=stat)
-            ax[i].fill_between(np.arange(n0, N+step, step), stat_mean-stat_error, stat_mean+stat_error, color=colors[j], alpha=0.10)
+            stat_mean = bootstrap[f'{stat}_mean']
+            stat_error = bootstrap[f'{stat}_std']*1.96
+            ax[i].plot(np.arange(n0, N), stat_mean, alpha=0.5, color=colors[j], label=stat)
+            ax[i].fill_between(np.arange(n0, N), stat_mean-stat_error, stat_mean+stat_error, color=colors[j], alpha=0.10)
         ax[i].legend()
 
     ax[0].set_ylim((-0.25, 1.75))

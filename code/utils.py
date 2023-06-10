@@ -41,3 +41,13 @@ def get_stats(f, fpreds):
     for k in fpreds.keys():
         results = add_stats(results, f, fpreds[k])
     return results
+
+def get_diffs(bootstrap_results, results):
+    stats = [k for k in results.keys() if not k.startswith('test_')]
+    diff_results = dict_list()
+
+    for stat in stats:
+        diff = (np.abs(bootstrap_results[stat] - results[stat][0]))
+        diff_results[f'{stat}_mean'] = diff.mean(0)
+        diff_results[f'{stat}_std'] = diff.std(0)
+    return diff_results
