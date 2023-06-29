@@ -5,6 +5,8 @@ Planning electricity transmission systems under uncertainty presents significant
 ## Using this repo
 This repo was built for academic research and not production code, however many of the functions in the [code](code/) folder may be useful for Gaussian Process modeling ([utils_actlearn](code/utils_actlearn/)), D-optimal sample design ([utils_dopt.py](code/utils_dopt.py)), and Variational Autoencoding ([utils_vae.py](code/utils_vae/)).
 
+All methods are documented in our final report writeup ([final_report.pdf](writeup/final_report.pdf)).
+
 
 ## Results
 We make two takeaways in this work. First, we find that both of the surrogate models are able to approximate the cost model after only 25-50 samples. Assuming that an adequate true distribution can be generated with 500 samples, this represents computational savings of $90-95\%$. While the linear model is not able to simulate the tails of the true distribution well, the Gaussian process model successfully approximates the outer percentiles (5th and 95th).
